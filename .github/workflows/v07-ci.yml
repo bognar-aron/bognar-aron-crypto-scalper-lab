@@ -1,0 +1,30 @@
+name: v0.7 CI
+
+on:
+  push:
+    branches: [v0.7-benchmark-data-layer]
+  pull_request:
+    paths:
+      - 'scalper_lab_v07/**'
+      - 'benchmark_lab_v07.py'
+      - 'tests/test_v07_core.py'
+      - 'requirements-v07.txt'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest
+      - name: Compile
+        run: python -m py_compile scalper_lab_v07/*.py benchmark_lab_v07.py
+      - name: Unit tests
+        env:
+          PYTHONPATH: .
+        run: pytest -q tests/test_v07_core.py
