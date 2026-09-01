@@ -1,0 +1,17 @@
+# Local/runtime artifacts
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.venv/
+venv/
+
+# Backtest data and outputs stay outside GitHub
+data/
+runs/
+lab_results*/
+*.zip
+*.parquet
+
+# Local secrets
+.env
+*.key
