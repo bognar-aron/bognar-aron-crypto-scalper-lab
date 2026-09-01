@@ -2,7 +2,7 @@ name: v0.7 CI
 
 on:
   push:
-    branches: [v0.7-benchmark-data-layer]
+    branches: [main, v0.7-benchmark-data-layer]
   pull_request:
     paths:
       - 'scalper_lab_v07/**'
