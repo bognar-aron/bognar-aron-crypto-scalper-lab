@@ -53,3 +53,29 @@ Instead of tuning one strategy family more aggressively, v0.6 compares five dist
 5. Relative-strength rotation
 
 The key rule remains unchanged: if nobody passes, nobody wins.
+
+## Open-source synthesis — architecture decision for v0.7+
+
+User-supplied research on Freqtrade, Hummingbot, OctoBot, NautilusTrader, Passivbot, Jesse, CCXT, Cryptofeed and R2 was synthesized into a modular architecture rather than selecting a single external bot.
+
+Decision:
+
+- CCXT for unified REST exchange access and simple adapters.
+- Cryptofeed for live trades/order-book/derivatives feeds.
+- NautilusTrader-inspired deterministic event model.
+- Jesse-inspired clean strategy API.
+- Freqtrade-inspired research ergonomics and dry-run progression.
+- Hummingbot-inspired order-book, maker and microstructure research.
+- OctoBot operator UX ideas where useful.
+- Passivbot and R2 as reference/idea sources only.
+
+The project's own walk-forward validation, realistic execution-cost model and sealed holdout remain the governing proof standard.
+
+Next intended milestones:
+
+- v0.7: benchmark + data-layer upgrade.
+- v0.8: market microstructure lab using trades and L1/L2 data.
+- v0.9: paper/shadow execution.
+- v1.0: small-capital production candidate only after surviving all prior gates.
+
+See `docs/OPEN_SOURCE_ARCHITECTURE.md` for the detailed synthesis and licensing policy.
