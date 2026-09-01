@@ -1,0 +1,71 @@
+name: CRYPTO SCALPER LAB v0.6
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Tournament mode
+        required: true
+        default: fast
+        type: choice
+        options: [core, fast, full]
+      symbols:
+        description: Comma-separated symbols
+        required: true
+        default: SOLUSDC,BTCUSDC,ETHUSDC,BNBUSDC,XRPUSDC,ADAUSDC,DOGEUSDC
+      fee_bps:
+        description: Fee bps per side
+        required: true
+        default: '10.0'
+      slippage_bps:
+        description: Slippage bps per side
+        required: true
+        default: '2.0'
+      start:
+        description: Development data start
+        required: true
+        default: '2024-01-01'
+      end:
+        description: Development data end. Keep <= 2026-07-31 while holdout is sealed.
+        required: true
+        default: '2026-07-31'
+
+jobs:
+  tournament:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Restore Binance data cache
+        uses: actions/cache@v4
+        with:
+          path: data
+          key: binance-5m-${{ inputs.start }}-${{ inputs.end }}-${{ inputs.symbols }}
+          restore-keys: |
+            binance-5m-${{ inputs.start }}-${{ inputs.end }}-
+            binance-5m-
+      - name: Run tournament
+        run: |
+          python strategy_tournament_v06.py \
+            --symbols '${{ inputs.symbols }}' \
+            --mode '${{ inputs.mode }}' \
+            --fee-bps '${{ inputs.fee_bps }}' \
+            --slippage-bps '${{ inputs.slippage_bps }}' \
+            --start '${{ inputs.start }}' \
+            --end '${{ inputs.end }}' \
+            --data-dir data \
+            --out lab_results_v06
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v06-${{ inputs.mode }}-results
+          path: lab_results_v06
+          if-no-files-found: warn
+          retention-days: 30
