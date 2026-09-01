@@ -57,4 +57,7 @@ python strategy_tournament_v06.py \
 
 Do not unlock the sealed holdout merely to inspect it. The point of the holdout is that model selection cannot see it.
 
-See `docs/RESEARCH_LOG.md` for the path from v0.3 to the current tournament.
+## Research docs
+
+- `docs/RESEARCH_LOG.md` — path from v0.3 to the current tournament.
+- `docs/OPEN_SOURCE_ARCHITECTURE.md` — synthesis of the supplied open-source trading/data ecosystem and the proposed v0.7+ architecture.
