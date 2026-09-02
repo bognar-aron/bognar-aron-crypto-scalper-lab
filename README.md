@@ -1,63 +1,91 @@
 # CRYPTO SCALPER LAB
 
-Online-first research lab for testing crypto trading hypotheses with walk-forward validation, explicit execution costs, and a sealed holdout.
+Online-first crypto market research lab built to **reject weak strategies before money is exposed**. The project uses explicit execution costs, walk-forward validation, minimum sample gates and sealed holdouts.
 
-## Current version: v0.6 Strategy Tournament
+## Current version: v0.8 Market Microstructure Lab
 
-Five strategy families compete on the same seven USDC markets with the same fee, slippage and risk engine:
+v0.7 tested three simple 5-minute OHLCV benchmarks on the same seven-USDC research universe. None passed the development gate:
 
-1. Momentum breakout
-2. Volatility expansion
-3. VWAP mean reversion
-4. Trend pullback v2
-5. Relative-strength rotation
+- Donchian + volume breakout: 599 validation trades, 0/3 positive folds, median expectancy -0.157R.
+- EMA trend: 612 validation trades, 0/3 positive folds, median expectancy -0.169R.
+- VWAP mean reversion: 516 validation trades, 0/3 positive folds, median expectancy -0.194R.
 
-FAST mode runs two predeclared variants per family. The research protocol does **not** promote a "least bad" strategy: if no candidate clears the development gate, there is no winner.
+That result motivated the move below candle level.
 
-### Development gate
+### v0.8 has two research lanes
 
-A candidate must satisfy all of the following:
+**A. Historical taker-flow research**
 
-- positive expectancy in at least 2 of 3 validation folds,
-- at least 10 validation trades in every fold,
-- at least 50 validation trades in total,
-- median validation expectancy > 0 R,
-- worst-fold expectancy >= -0.20 R,
-- worst validation drawdown < 8%.
+Binance Spot monthly `aggTrades` are processed one month at a time into 1-second features:
 
-The 2026-08-01+ sealed holdout stays locked unless explicitly unlocked after a genuine development PASS.
+- trade count and quote volume,
+- taker buy/sell quote volume,
+- signed quote flow,
+- 1s / 5s / 30s taker imbalance,
+- VWAP and short-horizon returns,
+- fixed-bin 1s / 5s / 30s predictive diagnostics.
+
+Historical v0.8 research refuses data at or after `2026-08-01`.
+
+**B. Prospective live L2 capture**
+
+Cryptofeed public Binance Spot `TRADES + L2_BOOK` feeds are normalized into the project's own event model and stored as raw trade logs plus microstructure snapshots. Features currently include spread, L1/L5 imbalance, top-5 quote depth, microprice, microprice edge, latency and rolling taker flow.
+
+Live capture is data collection only. It is not eligible for parameter selection until the v0.8 strategy protocol is frozen.
 
 ## Architecture
 
-- **GitHub**: source code, notebook, workflow, version history.
-- **Google Drive**: Binance historical-data cache and large run outputs.
-- **Google Colab**: interactive execution from browser/iPhone. The notebook clones the latest repo code, then reads/writes data on Drive.
-- **GitHub Actions**: optional manual cloud run without Colab. Results are uploaded as workflow artifacts.
+- **GitHub**: source code, notebooks, CI and research history.
+- **Google Drive**: large Binance archives, Parquet datasets and run outputs.
+- **Google Colab**: interactive compute from browser/iPhone.
+- **GitHub Actions**: reproducibility and unit/compile checks.
+- **CCXT**: optional REST adapter layer.
+- **Cryptofeed**: optional live WebSocket feed layer.
+- **Own event contract**: keeps research independent of any single external framework.
+
+## Research lineage
+
+- v0.3: original tight-stop pullback scalp failed after costs.
+- v0.4: encouraging 4-trade OOS result, rejected for tiny sample and weak development stability.
+- v0.5: seven-USDC robustness test removed the apparent edge.
+- v0.6: five-family Strategy Tournament.
+- v0.7: independent OHLCV benchmark lab, all three controls failed.
+- **v0.8: market microstructure / taker-flow research.**
 
 ## Colab
 
-Open `notebooks/CRYPTO_SCALPER_LAB_v06_COLAB.ipynb` in Colab and run all cells.
-
-The notebook clones this repository fresh on every session but keeps the heavy `data/` cache and `runs/` history on Google Drive.
+Open `notebooks/CRYPTO_SCALPER_LAB_v08_COLAB.ipynb` and run all cells for the historical trade-flow pilot. The live L2 cell is disabled by default and must be explicitly enabled.
 
 ## CLI
 
+Historical trade-flow pilot:
+
 ```bash
-pip install -r requirements.txt
-python strategy_tournament_v06.py \
-  --symbols SOLUSDC,BTCUSDC,ETHUSDC,BNBUSDC,XRPUSDC,ADAUSDC,DOGEUSDC \
-  --mode fast \
-  --fee-bps 10 \
-  --slippage-bps 2 \
-  --start 2024-01-01 \
-  --end 2026-07-31 \
+python microstructure_lab_v08.py tradeflow \
+  --symbols SOLUSDC,BTCUSDC,ETHUSDC \
+  --start 2026-01-01 \
+  --end 2026-04-01 \
   --data-dir data \
-  --out runs/v06
+  --out runs/v08_tradeflow
 ```
 
-Do not unlock the sealed holdout merely to inspect it. The point of the holdout is that model selection cannot see it.
+Optional public live L2 capture:
+
+```bash
+pip install -r requirements-v08.txt
+python microstructure_lab_v08.py capture \
+  --symbols BTC-USDC,SOL-USDC,ETH-USDC \
+  --seconds 300 \
+  --depth 10 \
+  --snapshot-interval-ms 100 \
+  --out runs/v08_live_capture
+```
+
+No exchange API key is required for v0.8 phase 1.
 
 ## Research docs
 
-- `docs/RESEARCH_LOG.md` — path from v0.3 to the current tournament.
-- `docs/OPEN_SOURCE_ARCHITECTURE.md` — synthesis of the supplied open-source trading/data ecosystem and the proposed v0.7+ architecture.
+- `docs/RESEARCH_LOG.md`
+- `docs/OPEN_SOURCE_ARCHITECTURE.md`
+- `docs/V07_IMPLEMENTATION.md`
+- `docs/V08_IMPLEMENTATION.md`
