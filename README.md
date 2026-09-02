@@ -2,7 +2,7 @@
 
 Online-first crypto market research lab built to **reject weak strategies before money is exposed**. The project uses explicit execution costs, walk-forward validation, minimum sample gates and sealed holdouts.
 
-## Current version: v0.8 Market Microstructure Lab
+## Current version: v0.8.1 Microstructure Validation
 
 v0.7 tested three simple 5-minute OHLCV benchmarks on the same seven-USDC research universe. None passed the development gate:
 
@@ -12,26 +12,44 @@ v0.7 tested three simple 5-minute OHLCV benchmarks on the same seven-USDC resear
 
 That result motivated the move below candle level.
 
-### v0.8 has two research lanes
+## v0.8 result
 
-**A. Historical taker-flow research**
+The Jan-Mar 2026 historical trade-flow pilot processed about 67.1 million Binance Spot aggregate trades across SOLUSDC, BTCUSDC and ETHUSDC. The frozen 5-second taker-imbalance feature showed a small but consistently positive relationship with subsequent 1s/5s/30s returns across all nine symbol-month development cells.
 
-Binance Spot monthly `aggTrades` are processed one month at a time into 1-second features:
+The signal was far smaller than ordinary taker round-trip friction, so v0.8 did **not** produce a tradeable strategy. It produced an information hypothesis worth validating.
 
-- trade count and quote volume,
-- taker buy/sell quote volume,
-- signed quote flow,
-- 1s / 5s / 30s taker imbalance,
-- VWAP and short-horizon returns,
-- fixed-bin 1s / 5s / 30s predictive diagnostics.
+## v0.8.1 validation
 
-Historical v0.8 research refuses data at or after `2026-08-01`.
+The feature definition and threshold are frozen before the later temporal validation:
 
-**B. Prospective live L2 capture**
+- feature: `taker_imbalance_5s`
+- strong-flow threshold: `abs(feature) >= 0.60`
+- symbols: SOLUSDC, BTCUSDC, ETHUSDC
+- development reference: `[2026-01-01, 2026-04-01)`
+- validation: `[2026-04-01, 2026-08-01)`
+- sealed historical holdout: `2026-08-01+`, still locked
 
-Cryptofeed public Binance Spot `TRADES + L2_BOOK` feeds are normalized into the project's own event model and stored as raw trade logs plus microstructure snapshots. Features currently include spread, L1/L5 imbalance, top-5 quote depth, microprice, microprice edge, latency and rolling taker flow.
+v0.8.1 adds deterministic non-overlapping horizon sampling, block-bootstrap confidence intervals, hit rates, tail-return diagnostics, rank-quantile monotonicity and fixed execution-cost hurdles.
 
-Live capture is data collection only. It is not eligible for parameter selection until the v0.8 strategy protocol is frozen.
+The research output separates:
+
+- `information_pass`: does the signal reproduce across later symbol-month cells?
+- `execution_pass`: does any useful edge remain even under an optimistic fixed 4 bps round-trip maker-like research hurdle?
+- `overall_live_candidate_pass`: requires both.
+
+No validation result is allowed to move the frozen 0.60 threshold.
+
+## v0.8 market-data architecture
+
+**Historical taker-flow research**
+
+Binance Spot monthly `aggTrades` are processed month-by-month into 1-second features: trade count, quote volume, taker buy/sell flow, signed quote flow, 1s/5s/30s taker imbalance, VWAP and short-horizon returns.
+
+**Prospective live L2 capture**
+
+Cryptofeed public Binance Spot `TRADES + L2_BOOK` feeds are normalized into the project's own event model. Features include spread, L1/L5 imbalance, top-5 quote depth, microprice, microprice edge, latency and rolling taker flow.
+
+Live capture is data collection only until the feature/strategy protocol is frozen.
 
 ## Architecture
 
@@ -50,38 +68,26 @@ Live capture is data collection only. It is not eligible for parameter selection
 - v0.5: seven-USDC robustness test removed the apparent edge.
 - v0.6: five-family Strategy Tournament.
 - v0.7: independent OHLCV benchmark lab, all three controls failed.
-- **v0.8: market microstructure / taker-flow research.**
+- v0.8: first second-level taker-flow signal discovery.
+- **v0.8.1: frozen temporal validation and execution-economics stress test.**
 
 ## Colab
 
-Open `notebooks/CRYPTO_SCALPER_LAB_v08_COLAB.ipynb` and run all cells for the historical trade-flow pilot. The live L2 cell is disabled by default and must be explicitly enabled.
+- `notebooks/CRYPTO_SCALPER_LAB_v08_COLAB.ipynb`: original Jan-Mar trade-flow pilot and optional live L2 capture.
+- `notebooks/CRYPTO_SCALPER_LAB_v081_COLAB.ipynb`: Apr-Jul frozen temporal validation.
 
 ## CLI
 
-Historical trade-flow pilot:
-
 ```bash
-python microstructure_lab_v08.py tradeflow \
+python microstructure_validation_v081.py \
   --symbols SOLUSDC,BTCUSDC,ETHUSDC \
-  --start 2026-01-01 \
-  --end 2026-04-01 \
+  --validation-start 2026-04-01 \
+  --validation-end 2026-08-01 \
   --data-dir data \
-  --out runs/v08_tradeflow
+  --out runs/v081_validation \
+  --block-seconds 300 \
+  --n-boot 300
 ```
-
-Optional public live L2 capture:
-
-```bash
-pip install -r requirements-v08.txt
-python microstructure_lab_v08.py capture \
-  --symbols BTC-USDC,SOL-USDC,ETH-USDC \
-  --seconds 300 \
-  --depth 10 \
-  --snapshot-interval-ms 100 \
-  --out runs/v08_live_capture
-```
-
-No exchange API key is required for v0.8 phase 1.
 
 ## Research docs
 
@@ -89,3 +95,4 @@ No exchange API key is required for v0.8 phase 1.
 - `docs/OPEN_SOURCE_ARCHITECTURE.md`
 - `docs/V07_IMPLEMENTATION.md`
 - `docs/V08_IMPLEMENTATION.md`
+- `docs/V081_VALIDATION_PROTOCOL.md`
