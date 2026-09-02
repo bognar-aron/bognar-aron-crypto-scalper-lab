@@ -28,15 +28,7 @@ But the sample was far too small. Only 4 OOS trades meant the trade-count gate f
 
 ## v0.5 — multi-USDC robustness test
 
-Expanded to:
-
-- SOLUSDC
-- BTCUSDC
-- ETHUSDC
-- BNBUSDC
-- XRPUSDC
-- ADAUSDC
-- DOGEUSDC
+Expanded to SOLUSDC, BTCUSDC, ETHUSDC, BNBUSDC, XRPUSDC, ADAUSDC and DOGEUSDC.
 
 The larger sample solved the trade-count problem but removed the apparent edge. No tested configuration passed the stricter development gate. The 2026-08-01+ holdout remained locked.
 
@@ -44,7 +36,7 @@ Conclusion: do not continue parameter-mining the same breakout/pullback architec
 
 ## v0.6 — Strategy Tournament
 
-Instead of tuning one strategy family more aggressively, v0.6 compares five distinct hypotheses under the same execution and validation framework:
+Instead of tuning one strategy family more aggressively, v0.6 compared five distinct hypotheses under the same execution and validation framework:
 
 1. Momentum breakout
 2. Volatility expansion
@@ -52,7 +44,7 @@ Instead of tuning one strategy family more aggressively, v0.6 compares five dist
 4. Trend pullback v2
 5. Relative-strength rotation
 
-The key rule remains unchanged: if nobody passes, nobody wins.
+The governing rule remained: if nobody passes, nobody wins.
 
 ## Open-source synthesis — architecture decision for v0.7+
 
@@ -71,11 +63,51 @@ Decision:
 
 The project's own walk-forward validation, realistic execution-cost model and sealed holdout remain the governing proof standard.
 
-Next intended milestones:
+## v0.7 — Benchmark + Data Layer
 
-- v0.7: benchmark + data-layer upgrade.
-- v0.8: market microstructure lab using trades and L1/L2 data.
-- v0.9: paper/shadow execution.
-- v1.0: small-capital production candidate only after surviving all prior gates.
+Implemented a normalized event contract, small strategy API, Parquet store, optional CCXT adapter and three fixed independent OHLCV control strategies. The controls were evaluated with the same three-fold robustness gate rather than a single full-period backtest.
 
-See `docs/OPEN_SOURCE_ARCHITECTURE.md` for the detailed synthesis and licensing policy.
+Real benchmark result:
+
+- Donchian + volume breakout: 599 validation trades, 0/3 positive folds, median expectancy -0.157R, worst validation DD about 10.32%.
+- EMA trend: 612 validation trades, 0/3 positive folds, median expectancy -0.169R, worst validation DD about 10.22%.
+- VWAP mean reversion: 516 validation trades, 0/3 positive folds, median expectancy -0.194R, worst validation DD about 10.27%.
+
+No benchmark passed. This substantially strengthened the case that the next research step should move below 5-minute OHLCV rather than tune another candle strategy.
+
+## v0.8 — Market Microstructure Lab
+
+Phase 1 is split into two lanes.
+
+### Historical taker-flow lane
+
+Binance Spot monthly `aggTrades` are processed month-by-month to keep memory bounded. The parser handles post-2025 microsecond timestamps and infers taker direction from `buyer_is_maker`.
+
+Features are aggregated to 1 second:
+
+- trade count,
+- quote/base volume,
+- buy and sell taker quote volume,
+- signed quote flow,
+- 1s / 5s / 30s taker imbalance,
+- VWAP,
+- short-horizon returns.
+
+The first analysis is pre-strategy: fixed imbalance buckets and rank correlation versus 1s / 5s / 30s forward returns. This asks whether the information exists before building an execution rule around it.
+
+Historical research is hard-blocked from loading data at or after 2026-08-01.
+
+### Prospective live L2 lane
+
+Cryptofeed public Binance Spot `TRADES` and `L2_BOOK` callbacks are normalized into the project's own event contract. The recorder captures raw trades and throttled L2 feature snapshots with:
+
+- spread,
+- L1/L5 order-book imbalance,
+- top-5 quote depth,
+- microprice and microprice edge,
+- receive latency,
+- rolling taker flow.
+
+Live data collected after the historical holdout date is treated as prospective raw data only and cannot be used for parameter selection until the feature and strategy protocol is frozen.
+
+Next intended milestone after proving the data layer: queue-position / maker-fill and latency-aware shadow execution, not immediate live trading.
