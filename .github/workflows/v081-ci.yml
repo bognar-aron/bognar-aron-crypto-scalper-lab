@@ -2,7 +2,7 @@ name: v0.8.1 CI
 
 on:
   push:
-    branches: [v0.8.1-microstructure-validation]
+    branches: [main, v0.8.1-microstructure-validation]
     paths:
       - 'scalper_lab_v08/validation.py'
       - 'microstructure_validation_v081.py'
