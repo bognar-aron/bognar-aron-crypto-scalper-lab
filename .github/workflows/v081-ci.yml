@@ -1,0 +1,35 @@
+name: v0.8.1 CI
+
+on:
+  push:
+    branches: [v0.8.1-microstructure-validation]
+    paths:
+      - 'scalper_lab_v08/validation.py'
+      - 'microstructure_validation_v081.py'
+      - 'tests/test_v081_validation.py'
+      - '.github/workflows/v081-ci.yml'
+  pull_request:
+    paths:
+      - 'scalper_lab_v08/validation.py'
+      - 'microstructure_validation_v081.py'
+      - 'tests/test_v081_validation.py'
+      - '.github/workflows/v081-ci.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest
+      - name: Compile
+        run: python -m py_compile scalper_lab_v08/validation.py microstructure_validation_v081.py
+      - name: Unit tests
+        env:
+          PYTHONPATH: .
+        run: pytest -q tests/test_v081_validation.py
