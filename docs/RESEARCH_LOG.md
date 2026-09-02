@@ -77,37 +77,46 @@ No benchmark passed. This substantially strengthened the case that the next rese
 
 ## v0.8 — Market Microstructure Lab
 
-Phase 1 is split into two lanes.
+Phase 1 split into historical taker-flow research and prospective live L2 capture.
 
-### Historical taker-flow lane
+The Jan-Mar 2026 historical pilot processed approximately 67.1 million Binance Spot aggregate trades across SOLUSDC, BTCUSDC and ETHUSDC. It produced more than 10 million active one-second observations.
 
-Binance Spot monthly `aggTrades` are processed month-by-month to keep memory bounded. The parser handles post-2025 microsecond timestamps and infers taker direction from `buyer_is_maker`.
+Frozen development feature:
 
-Features are aggregated to 1 second:
+- `taker_imbalance_5s`
+- strong flow: `abs(imbalance) >= 0.60`
+- forward horizons: 1s, 5s, 30s
 
-- trade count,
-- quote/base volume,
-- buy and sell taker quote volume,
-- signed quote flow,
-- 1s / 5s / 30s taker imbalance,
-- VWAP,
-- short-horizon returns.
+Observed development result:
 
-The first analysis is pre-strategy: fixed imbalance buckets and rank correlation versus 1s / 5s / 30s forward returns. This asks whether the information exists before building an execution rule around it.
+- rank correlation was positive in all nine symbol-month cells at the tested horizons,
+- average signal strength was largest at 1 second and decayed quickly,
+- strong-flow aligned forward returns were positive on average,
+- the gross effect size was only around tenths of a basis point and therefore far below normal taker round-trip friction.
 
-Historical research is hard-blocked from loading data at or after 2026-08-01.
+Conclusion: v0.8 discovered a consistent information hypothesis, not a tradeable strategy.
 
-### Prospective live L2 lane
+Prospective public Binance Spot `TRADES` and `L2_BOOK` capture remains available for later spread, depth, microprice, queue and fill research. Data collected after the historical holdout date is prospective raw data only.
 
-Cryptofeed public Binance Spot `TRADES` and `L2_BOOK` callbacks are normalized into the project's own event contract. The recorder captures raw trades and throttled L2 feature snapshots with:
+## v0.8.1 — frozen microstructure validation
 
-- spread,
-- L1/L5 order-book imbalance,
-- top-5 quote depth,
-- microprice and microprice edge,
-- receive latency,
-- rolling taker flow.
+The v0.8 signal definition is frozen before examining Apr-Jul 2026 validation data.
 
-Live data collected after the historical holdout date is treated as prospective raw data only and cannot be used for parameter selection until the feature and strategy protocol is frozen.
+Validation protocol:
 
-Next intended milestone after proving the data layer: queue-position / maker-fill and latency-aware shadow execution, not immediate live trading.
+- feature stays `taker_imbalance_5s`,
+- strong-flow threshold stays 0.60,
+- symbols stay SOLUSDC/BTCUSDC/ETHUSDC,
+- validation window is `[2026-04-01, 2026-08-01)`,
+- 2026-08-01+ historical holdout remains locked,
+- 1s and 5s are primary proof horizons; 30s is diagnostic,
+- horizon windows are sampled non-overlapping,
+- confidence intervals use 300-second block bootstrap,
+- quantile direction, hit rate and tail behavior are reported,
+- fixed round-trip execution hurdles are evaluated separately from information quality.
+
+The information gate requires cross-cell consistency, not a single pooled p-value. The execution gate uses an intentionally optimistic 4 bps maker-like research hurdle and does not claim executable fills.
+
+No validation result may be used to move the 0.60 threshold. If the signal fails, it fails. If information survives but execution does not, the next step is L2 state conditioning and realistic maker queue/fill modeling, not live trading.
+
+See `docs/V081_VALIDATION_PROTOCOL.md`.
