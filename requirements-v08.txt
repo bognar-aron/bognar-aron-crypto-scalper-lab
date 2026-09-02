@@ -1,0 +1,4 @@
+-r requirements.txt
+pyarrow>=15
+ccxt>=4
+cryptofeed>=2.5,<3
