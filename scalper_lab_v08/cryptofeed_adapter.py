@@ -129,30 +129,49 @@ class CryptofeedMicrostructureRecorder:
         self.feature_sink.write(asdict(snap))
 
     async def capture(self, symbols: Iterable[str], seconds: int = 300, exchange: str = 'BINANCE') -> dict:
+        """Capture public Cryptofeed data inside the caller's asyncio loop.
+
+        Cryptofeed 2.x exposes FeedHandler.run(start_loop=False) plus stop_async().
+        It does not expose the run_async()/request_stop() methods that an earlier
+        adapter revision mistakenly assumed.
+        """
         try:
             from cryptofeed import FeedHandler
             from cryptofeed.defines import L2_BOOK, TRADES
             from cryptofeed.exchanges import Binance
         except ImportError as exc:
+            self.trade_sink.close()
+            self.feature_sink.close()
             raise RuntimeError('Install live dependency: pip install cryptofeed>=2.5,<3') from exc
 
         if exchange.upper() != 'BINANCE':
+            self.trade_sink.close()
+            self.feature_sink.close()
             raise ValueError('v0.8 phase-1 live recorder currently supports BINANCE only')
+
         symbol_list = list(symbols)
-        fh = FeedHandler(on_feed_error='raise')
+        fh = FeedHandler()
         fh.add_feed(Binance(
-            symbols=symbol_list, channels=[TRADES, L2_BOOK],
+            symbols=symbol_list,
+            channels=[TRADES, L2_BOOK],
             callbacks={TRADES: self.on_trade, L2_BOOK: self.on_book},
             max_depth=self.depth,
         ))
-        task = asyncio.create_task(fh.run_async(install_signal_handlers=False))
+
+        loop = asyncio.get_running_loop()
+        started = False
         try:
-            await asyncio.sleep(int(seconds))
+            fh.run(start_loop=False, install_signal_handlers=False)
+            started = True
+            await asyncio.sleep(max(0, int(seconds)))
         finally:
-            fh.request_stop()
-            await task
-            self.trade_sink.close()
-            self.feature_sink.close()
+            try:
+                if started:
+                    await fh.stop_async(loop=loop)
+            finally:
+                self.trade_sink.close()
+                self.feature_sink.close()
+
         result = {
             'capture_seconds': int(seconds),
             'symbols': symbol_list,

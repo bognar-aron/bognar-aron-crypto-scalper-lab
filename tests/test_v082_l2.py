@@ -1,5 +1,10 @@
+import asyncio
+import sys
+import types
+
 import pandas as pd
 
+from scalper_lab_v08.cryptofeed_adapter import CryptofeedMicrostructureRecorder
 from scalper_lab_v08.l2_conditioning import (
     MakerFillConfig,
     add_condition_columns,
@@ -73,3 +78,50 @@ def test_maker_fill_summary():
     fills = simulate_maker_fills(s, trades, MakerFillConfig(order_notional_quote=10, ttl_seconds=5))
     summary = maker_fill_summary(fills)
     assert "fill_rate" in summary.columns
+
+
+def test_cryptofeed_capture_uses_supported_async_lifecycle(tmp_path, monkeypatch):
+    class FakeFeedHandler:
+        instances = []
+
+        def __init__(self):
+            self.started = False
+            self.stopped = False
+            self.feed = None
+            self.__class__.instances.append(self)
+
+        def add_feed(self, feed):
+            self.feed = feed
+
+        def run(self, start_loop=True, install_signal_handlers=True):
+            assert start_loop is False
+            assert install_signal_handlers is False
+            self.started = True
+
+        async def stop_async(self, loop=None):
+            assert loop is asyncio.get_running_loop()
+            self.stopped = True
+
+    class FakeBinance:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+    cryptofeed = types.ModuleType("cryptofeed")
+    cryptofeed.FeedHandler = FakeFeedHandler
+    defines = types.ModuleType("cryptofeed.defines")
+    defines.L2_BOOK = "L2_BOOK"
+    defines.TRADES = "TRADES"
+    exchanges = types.ModuleType("cryptofeed.exchanges")
+    exchanges.Binance = FakeBinance
+    monkeypatch.setitem(sys.modules, "cryptofeed", cryptofeed)
+    monkeypatch.setitem(sys.modules, "cryptofeed.defines", defines)
+    monkeypatch.setitem(sys.modules, "cryptofeed.exchanges", exchanges)
+
+    recorder = CryptofeedMicrostructureRecorder(tmp_path / "capture")
+    result = asyncio.run(recorder.capture(["BTC-USDC"], seconds=0))
+
+    fh = FakeFeedHandler.instances[-1]
+    assert fh.started
+    assert fh.stopped
+    assert result["symbols"] == ["BTC-USDC"]
+    assert (tmp_path / "capture" / "capture_manifest.json").exists()
