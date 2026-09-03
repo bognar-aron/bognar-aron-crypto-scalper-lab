@@ -24,18 +24,31 @@ def _ts(value) -> pd.Timestamp:
 
 
 class JsonlSink:
-    def __init__(self, path: str | Path):
+    """Buffered append-only JSONL sink for high-rate public market data."""
+    def __init__(self, path: str | Path, flush_every: int = 1000):
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.count = 0
+        self.flush_every = max(1, int(flush_every))
+        self._fh = self.path.open('a', encoding='utf-8', buffering=1024 * 1024)
 
     def write(self, row: dict) -> None:
         clean = {}
         for k, v in row.items():
             clean[k] = v.isoformat() if isinstance(v, pd.Timestamp) else v
-        with self.path.open('a', encoding='utf-8') as f:
-            f.write(json.dumps(clean, ensure_ascii=False, default=str) + '\n')
+        self._fh.write(json.dumps(clean, ensure_ascii=False, default=str) + '\n')
         self.count += 1
+        if self.count % self.flush_every == 0:
+            self._fh.flush()
+
+    def flush(self) -> None:
+        if not self._fh.closed:
+            self._fh.flush()
+
+    def close(self) -> None:
+        if not self._fh.closed:
+            self._fh.flush()
+            self._fh.close()
 
 
 class CryptofeedMicrostructureRecorder:
@@ -125,9 +138,10 @@ class CryptofeedMicrostructureRecorder:
 
         if exchange.upper() != 'BINANCE':
             raise ValueError('v0.8 phase-1 live recorder currently supports BINANCE only')
+        symbol_list = list(symbols)
         fh = FeedHandler(on_feed_error='raise')
         fh.add_feed(Binance(
-            symbols=list(symbols), channels=[TRADES, L2_BOOK],
+            symbols=symbol_list, channels=[TRADES, L2_BOOK],
             callbacks={TRADES: self.on_trade, L2_BOOK: self.on_book},
             max_depth=self.depth,
         ))
@@ -137,9 +151,11 @@ class CryptofeedMicrostructureRecorder:
         finally:
             fh.request_stop()
             await task
+            self.trade_sink.close()
+            self.feature_sink.close()
         result = {
             'capture_seconds': int(seconds),
-            'symbols': list(symbols),
+            'symbols': symbol_list,
             'trades_written': self.trade_sink.count,
             'microstructure_snapshots_written': self.feature_sink.count,
             'output_dir': str(self.out_dir),
