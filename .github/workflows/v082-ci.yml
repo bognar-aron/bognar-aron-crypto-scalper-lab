@@ -2,7 +2,7 @@ name: v0.8.2 CI
 
 on:
   push:
-    branches: [v0.8.2-l2-maker-lab]
+    branches: [main]
     paths:
       - 'scalper_lab_v08/l2_conditioning.py'
       - 'scalper_lab_v08/cryptofeed_adapter.py'
