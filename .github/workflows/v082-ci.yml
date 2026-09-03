@@ -1,0 +1,37 @@
+name: v0.8.2 CI
+
+on:
+  push:
+    branches: [v0.8.2-l2-maker-lab]
+    paths:
+      - 'scalper_lab_v08/l2_conditioning.py'
+      - 'scalper_lab_v08/cryptofeed_adapter.py'
+      - 'l2_conditioning_lab_v082.py'
+      - 'tests/test_v082_l2.py'
+      - '.github/workflows/v082-ci.yml'
+  pull_request:
+    paths:
+      - 'scalper_lab_v08/l2_conditioning.py'
+      - 'scalper_lab_v08/cryptofeed_adapter.py'
+      - 'l2_conditioning_lab_v082.py'
+      - 'tests/test_v082_l2.py'
+      - '.github/workflows/v082-ci.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest
+      - name: Compile
+        run: python -m py_compile scalper_lab_v08/l2_conditioning.py scalper_lab_v08/cryptofeed_adapter.py l2_conditioning_lab_v082.py
+      - name: Unit tests
+        env:
+          PYTHONPATH: .
+        run: pytest -q tests/test_v08_core.py tests/test_v082_l2.py

@@ -100,23 +100,63 @@ Prospective public Binance Spot `TRADES` and `L2_BOOK` capture remains available
 
 ## v0.8.1 — frozen microstructure validation
 
-The v0.8 signal definition is frozen before examining Apr-Jul 2026 validation data.
+The v0.8 signal definition was frozen before examining Apr-Jul 2026 validation data.
 
 Validation protocol:
 
-- feature stays `taker_imbalance_5s`,
-- strong-flow threshold stays 0.60,
-- symbols stay SOLUSDC/BTCUSDC/ETHUSDC,
-- validation window is `[2026-04-01, 2026-08-01)`,
-- 2026-08-01+ historical holdout remains locked,
-- 1s and 5s are primary proof horizons; 30s is diagnostic,
-- horizon windows are sampled non-overlapping,
-- confidence intervals use 300-second block bootstrap,
-- quantile direction, hit rate and tail behavior are reported,
-- fixed round-trip execution hurdles are evaluated separately from information quality.
+- feature stayed `taker_imbalance_5s`,
+- strong-flow threshold stayed 0.60,
+- symbols stayed SOLUSDC/BTCUSDC/ETHUSDC,
+- validation window was `[2026-04-01, 2026-08-01)`,
+- 2026-08-01+ historical holdout remained locked,
+- 1s and 5s were primary proof horizons; 30s diagnostic,
+- horizon windows were sampled non-overlapping,
+- confidence intervals used 300-second block bootstrap,
+- quantile direction, hit rate and tail behavior were reported,
+- fixed round-trip execution hurdles were evaluated separately from information quality.
 
-The information gate requires cross-cell consistency, not a single pooled p-value. The execution gate uses an intentionally optimistic 4 bps maker-like research hurdle and does not claim executable fills.
+Real validation result:
 
-No validation result may be used to move the 0.60 threshold. If the signal fails, it fails. If information survives but execution does not, the next step is L2 state conditioning and realistic maker queue/fill modeling, not live trading.
+- `information_pass = true`
+- `execution_pass = false`
+- `overall_live_candidate_pass = false`
+- 12/12 cells positive rank correlation at 1s, 5s and 30s
+- 12/12 cells positive aligned mean at all three horizons
+- 12/12 cells positive bootstrap lower bound at all three horizons
+- median rank correlation: 0.153 / 0.147 / 0.079 for 1s / 5s / 30s
+- median aligned mean: +0.118 / +0.233 / +0.288 bps
+- optimistic 4 bps maker-like hurdle still produced median net -3.847 bps and 0% positive cells
+
+Conclusion: the information survived later temporal validation, but the execution hurdle did not. This directly triggers L2 state conditioning and realistic maker queue/fill research rather than live trading.
 
 See `docs/V081_VALIDATION_PROTOCOL.md`.
+
+## v0.8.2 — prospective L2 conditioning + shadow maker fills
+
+v0.8.2 freezes a small set of L2 conditioning rules before collecting new public Binance Spot `TRADES + L2_BOOK` data.
+
+Frozen state definitions:
+
+- strong 5s flow remains `abs(flow) >= 0.60`,
+- signed L5 imbalance confirmation >= 0.25,
+- signed microprice edge >= 0.05 bps,
+- opposing/same L5 quote-depth ratio <= 0.80,
+- spread <= 1.50 bps,
+- 5-second signal cooldown,
+- markouts at 1s, 5s and 30s.
+
+The prospective analyzer compares flow-only observations with increasingly restrictive L2-confirmed states. No thresholds may be retuned from the same capture.
+
+Shadow maker model:
+
+- buy at best bid / sell at best ask,
+- 100 quote-unit research order,
+- 5-second TTL,
+- all visible L1 quantity treated as queue ahead,
+- only actual opposing aggressive trades at-or-through the order price consume queue,
+- cancellation credit is zero,
+- filled orders are evaluated by post-fill mid-price markout.
+
+This phase measures data sufficiency, L2 conditioning and conservative passive-entry fill behavior. It is not a full round-trip strategy PnL test and cannot generate a live-trading approval.
+
+See `docs/V082_IMPLEMENTATION.md`.
